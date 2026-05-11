@@ -35,39 +35,35 @@ with col2:
 
 prediction_date = st.sidebar.date_input("Prediction Date", datetime.today() + timedelta(days=1))
 
-# Option to view history
-view_history = st.sidebar.checkbox("📜 View Prediction History", value=False)
+# Button to predict
+predict_button = st.sidebar.button("🔮 Predict Units Sold", type="primary", use_container_width=True)
+
+# Button to view history
+view_history = st.sidebar.button("📜 View Prediction History", use_container_width=True)
 
 # ========================
-# CONVERT YES/NO TO 0/1 FOR MODEL
+# CONVERT YES/NO TO 0/1
 # ========================
 promotion_val = 1 if promotion == "Yes" else 0
 epidemic_val = 1 if epidemic == "Yes" else 0
 
 # ========================
-# PREDICTION LOGIC (Mock for now)
+# MAKE PREDICTION
 # ========================
-if st.sidebar.button("🔮 Predict Units Sold", type="primary", use_container_width=True):
-    
+if predict_button:
     base_units = 80
     
-    # Adjustments based on inputs
-    if promotion_val == 1:
-        base_units += 35
-    if discount >= 10:
-        base_units += 20
-    if weather in ["Rainy", "Snowy"]:
-        base_units -= 15
-    if epidemic_val == 1:
-        base_units -= 25
-    if seasonality in ["Summer", "Winter"]:
-        base_units += 10
+    if promotion_val == 1: base_units += 35
+    if discount >= 10: base_units += 20
+    if weather in ["Rainy", "Snowy"]: base_units -= 15
+    if epidemic_val == 1: base_units -= 25
+    if seasonality in ["Summer", "Winter"]: base_units += 10
     
     predicted_units = int(base_units + np.random.normal(0, 8))
     predicted_units = max(20, predicted_units)
 
     st.success(f"**Predicted Daily Units Sold: {predicted_units} units**")
-    st.info(f"📅 **Date**: {prediction_date.strftime('%Y-%m-%d')} | {prediction_date.strftime('%A')}")
+    st.info(f"📅 **Date**: {prediction_date.strftime('%Y-%m-%d')} ({prediction_date.strftime('%A')})")
 
     if predicted_units >= 110:
         st.balloons()
@@ -78,23 +74,22 @@ if st.sidebar.button("🔮 Predict Units Sold", type="primary", use_container_wi
         st.warning("⚠️ Low Demand Expected")
 
 # ========================
-# PREDICTION HISTORY (Sample Data)
+# SHOW PREDICTION HISTORY
 # ========================
 if view_history:
-    st.subheader("📜 Prediction History (Sample)")
+    st.subheader("📜 Recent Prediction History (Sample)")
     
     sample_history = pd.DataFrame({
-        "Date": ["2026-05-10", "2026-05-09", "2026-05-08", "2026-05-07"],
-        "Predicted Units": [98, 145, 67, 112],
-        "Promotion": ["Yes", "No", "Yes", "No"],
-        "Discount (%)": [10, 5, 15, 0],
-        "Weather": ["Sunny", "Rainy", "Cloudy", "Sunny"],
-        "Epidemic": ["No", "No", "Yes", "No"]
+        "Date": ["2026-05-10", "2026-05-09", "2026-05-08", "2026-05-07", "2026-05-06"],
+        "Predicted Units": [98, 145, 67, 112, 89],
+        "Promotion": ["Yes", "No", "Yes", "No", "No"],
+        "Discount (%)": [10, 5, 15, 0, 8],
+        "Weather": ["Sunny", "Rainy", "Cloudy", "Sunny", "Sunny"],
+        "Epidemic": ["No", "No", "Yes", "No", "No"],
+        "Actual Units (if available)": [ "-", "-", 72, "-", "-"]
     })
     
     st.dataframe(sample_history, use_container_width=True, hide_index=True)
-    
-    st.caption("Note: This is sample data. Real history will be saved once database is connected.")
 
 # ========================
 # FOOTER
