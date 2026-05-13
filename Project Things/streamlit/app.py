@@ -2,15 +2,40 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
+import sqlite3
+import os
+
+# ========================
+# DATABASE SETUP
+# ========================
+DB_PATH = "sales_predictions.db"
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prediction_date TEXT,
+            predicted_units INTEGER,
+            inventory_level INTEGER,
+            price REAL,
+            discount INTEGER,
+            promotion INTEGER,
+            weather TEXT,
+            seasonality TEXT,
+            epidemic INTEGER,
+            timestamp TEXT
+        )
+    ''')
+    conn.close()
+
+# Initialize database
+init_db()
 
 # ========================
 # PAGE CONFIG
 # ========================
-st.set_page_config(
-    page_title="Sales Demand Forecaster",
-    page_icon="📈",
-    layout="wide"
-)
+st.set_page_config(page_title="Sales Demand Forecaster", page_icon="📈", layout="wide")
 
 st.title("📊 Sales Forecasting System")
 st.markdown("**Daily Units Sold Predictor**")
@@ -35,24 +60,19 @@ with col2:
 
 prediction_date = st.sidebar.date_input("Prediction Date", datetime.today() + timedelta(days=1))
 
-# Button to predict
 predict_button = st.sidebar.button("🔮 Predict Units Sold", type="primary", use_container_width=True)
-
-# Button to view history
 view_history = st.sidebar.button("📜 View Prediction History", use_container_width=True)
 
-# ========================
-# CONVERT YES/NO TO 0/1
-# ========================
+# Convert Yes/No to 0/1
 promotion_val = 1 if promotion == "Yes" else 0
 epidemic_val = 1 if epidemic == "Yes" else 0
 
 # ========================
-# MAKE PREDICTION
+# MAKE PREDICTION + SAVE TO DB
 # ========================
 if predict_button:
+    # Simple mock prediction logic (replace with real model later)
     base_units = 80
-    
     if promotion_val == 1: base_units += 35
     if discount >= 10: base_units += 20
     if weather in ["Rainy", "Snowy"]: base_units -= 15
@@ -62,6 +82,29 @@ if predict_button:
     predicted_units = int(base_units + np.random.normal(0, 8))
     predicted_units = max(20, predicted_units)
 
+    # Save to database
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('''
+        INSERT INTO predictions 
+        (prediction_date, predicted_units, inventory_level, price, discount, 
+         promotion, weather, seasonality, epidemic, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        prediction_date.strftime('%Y-%m-%d'),
+        predicted_units,
+        inventory_level,
+        price,
+        discount,
+        promotion_val,
+        weather,
+        seasonality,
+        epidemic_val,
+        datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    ))
+    conn.commit()
+    conn.close()
+
+    # Display result
     st.success(f"**Predicted Daily Units Sold: {predicted_units} units**")
     st.info(f"📅 **Date**: {prediction_date.strftime('%Y-%m-%d')} ({prediction_date.strftime('%A')})")
 
@@ -74,24 +117,36 @@ if predict_button:
         st.warning("⚠️ Low Demand Expected")
 
 # ========================
-# SHOW PREDICTION HISTORY
+# VIEW PREDICTION HISTORY
 # ========================
 if view_history:
-    st.subheader("📜 Recent Prediction History (Sample)")
+    st.subheader("📜 Prediction History")
     
-    sample_history = pd.DataFrame({
-        "Date": ["2026-05-10", "2026-05-09", "2026-05-08", "2026-05-07", "2026-05-06"],
-        "Predicted Units": [98, 145, 67, 112, 89],
-        "Promotion": ["Yes", "No", "Yes", "No", "No"],
-        "Discount (%)": [10, 5, 15, 0, 8],
-        "Weather": ["Sunny", "Rainy", "Cloudy", "Sunny", "Sunny"],
-        "Epidemic": ["No", "No", "Yes", "No", "No"],
-        "Actual Units (if available)": [ "-", "-", 72, "-", "-"]
-    })
-    
-    st.dataframe(sample_history, use_container_width=True, hide_index=True)
+    conn = sqlite3.connect(DB_PATH)
+    df_history = pd.read_sql_query("""
+        SELECT 
+            prediction_date as Date,
+            predicted_units as "Predicted Units",
+            inventory_level as "Inventory Level",
+            price as "Price ($)",
+            discount as "Discount (%)",
+            CASE WHEN promotion = 1 THEN 'Yes' ELSE 'No' END as Promotion,
+            weather as Weather,
+            seasonality as Season,
+            CASE WHEN epidemic = 1 THEN 'Yes' ELSE 'No' END as Epidemic,
+            timestamp as "Predicted At"
+        FROM predictions 
+        ORDER BY id DESC 
+        LIMIT 20
+    """, conn)
+    conn.close()
+
+    if df_history.empty:
+        st.info("No predictions yet. Make your first prediction!")
+    else:
+        st.dataframe(df_history, use_container_width=True, hide_index=True)
 
 # ========================
 # FOOTER
 # ========================
-st.caption("Sales Forecasting System | XGBoost Model | Sample Version")
+st.caption("Sales Forecasting System | XGBoost Model | SQLite Database Enabled")
