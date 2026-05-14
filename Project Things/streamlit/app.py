@@ -122,7 +122,7 @@ def predict(prediction_date, inventory_level, price, discount,
 st.set_page_config(page_title="Sales Demand Forecaster", layout="wide")
 
 st.title("Sales Forecasting System")
-st.markdown("**Daily Units Sold Predictor — Stacked Ensemble (XGBoost + Random Forest + Ridge)**")
+st.markdown("**Daily Units Sold Predictor — Stacked Ensemble (XGBoost + Random Forest)**")
 
 if not MODEL_LOADED:
     st.error(f"Model not found. Run FinalModel.ipynb first to generate model_artifacts/artifacts.pkl. Error: {MODEL_ERROR}")
