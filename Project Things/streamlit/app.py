@@ -216,12 +216,11 @@ if view_history:
     else:
         st.dataframe(df_history, use_container_width=True, hide_index=True)
 
- if clear_history:
+if clear_history:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("DELETE FROM predictions")
     conn.commit()
     conn.close()
     st.success("Prediction history cleared.")
-
  
 st.caption("Sales Forecasting System | Stacked Ensemble (XGBoost + Random Forest) | SQLite Database Enabled")
