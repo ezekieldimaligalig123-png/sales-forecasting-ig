@@ -10,6 +10,13 @@ import gdown
 GDRIVE_FILE_ID = "1M6aagrvIUHM6L3fGszl679X3DC31qiE6"
 ARTIFACTS_PATH = "model_artifacts/artifacts.pkl"
 
+def download_artifacts():
+    if not os.path.exists(ARTIFACTS_PATH):
+        os.makedirs("model_artifacts", exist_ok=True)
+        url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
+        gdown.download(url, ARTIFACTS_PATH, quiet=False)
+
+download_artifacts()
 
 @st.cache_resource
 def load_artifacts():
