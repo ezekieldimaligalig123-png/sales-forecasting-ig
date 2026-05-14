@@ -5,6 +5,10 @@ import numpy as np
 import sqlite3
 import os
 import joblib
+import gdown
+
+GDRIVE_FILE_ID = "1M6aagrvIUHM6L3fGszl679X3DC31qiE6"
+ARTIFACTS_PATH = "model_artifacts/artifacts.pkl"
 
 
 @st.cache_resource
