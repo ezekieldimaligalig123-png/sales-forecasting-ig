@@ -216,8 +216,7 @@ if view_history:
     else:
         st.dataframe(df_history, use_container_width=True, hide_index=True)
 
- 
-     if clear_history:
+ if clear_history:
     conn = sqlite3.connect(DB_PATH)
     conn.execute("DELETE FROM predictions")
     conn.commit()
