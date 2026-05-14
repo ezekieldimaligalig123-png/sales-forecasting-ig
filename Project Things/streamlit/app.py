@@ -147,6 +147,8 @@ prediction_date = st.sidebar.date_input("Prediction Date", datetime.today() + ti
  
 predict_button = st.sidebar.button("Predict Units Sold", type="primary", use_container_width=True)
 view_history   = st.sidebar.button("View Prediction History", use_container_width=True)
+
+clear_history  = st.sidebar.button("Clear Prediction History", use_container_width=True)
  
 promotion_val = 1 if promotion == "Yes" else 0
 epidemic_val  = 1 if epidemic  == "Yes" else 0
