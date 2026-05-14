@@ -183,7 +183,6 @@ if predict_button:
     st.info(f"Date: {prediction_date.strftime('%Y-%m-%d')} ({prediction_date.strftime('%A')})")
  
     if predicted_units >= 110:
-        st.balloons()
         st.success("High Demand Expected — Prepare more stock!")
     elif predicted_units >= 70:
         st.info("Moderate Demand")
@@ -216,5 +215,14 @@ if view_history:
         st.info("No predictions yet. Make your first prediction!")
     else:
         st.dataframe(df_history, use_container_width=True, hide_index=True)
+
  
-st.caption("Sales Forecasting System | Stacked Ensemble (XGBoost + Random Forest + Ridge) | SQLite Database Enabled")
+     if clear_history:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("DELETE FROM predictions")
+    conn.commit()
+    conn.close()
+    st.success("Prediction history cleared.")
+
+ 
+st.caption("Sales Forecasting System | Stacked Ensemble (XGBoost + Random Forest) | SQLite Database Enabled")
