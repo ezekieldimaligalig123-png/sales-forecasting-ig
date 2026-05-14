@@ -6,37 +6,37 @@ import sqlite3
 import os
 import joblib
 import gdown
-
+ 
 GDRIVE_FILE_ID = "1M6aagrvIUHM6L3fGszl679X3DC31qiE6"
 ARTIFACTS_PATH = "model_artifacts/artifacts.pkl"
-
+ 
 def download_artifacts():
     if not os.path.exists(ARTIFACTS_PATH):
         os.makedirs("model_artifacts", exist_ok=True)
         url = f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}"
         gdown.download(url, ARTIFACTS_PATH, quiet=False)
-
+ 
 download_artifacts()
-
+ 
 @st.cache_resource
 def load_artifacts():
-    arts = joblib.load('model_artifacts/artifacts.pkl')
+    arts = joblib.load(ARTIFACTS_PATH)
     return (
         arts['model'],
         arts['scaler'],
         arts['train_columns'],
         arts['selected_columns'],
     )
-
+ 
 try:
     stack_model, scaler, train_columns, selected_cols = load_artifacts()
     MODEL_LOADED = True
 except Exception as e:
     MODEL_LOADED = False
     MODEL_ERROR  = str(e)
-
+ 
 DB_PATH = "sales_predictions.db"
-
+ 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute('''
@@ -56,14 +56,14 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
-
+ 
 init_db()
-
-
+ 
+ 
 def build_input(prediction_date, inventory_level, price, discount,
                 promotion_val, weather, seasonality, epidemic_val):
     dt = pd.Timestamp(prediction_date)
-
+ 
     row = {
         'Inventory Level'   : inventory_level,
         'Price'             : price,
@@ -87,77 +87,77 @@ def build_input(prediction_date, inventory_level, price, discount,
         'DOW_sin'           : np.sin(2 * np.pi * dt.dayofweek / 7),
         'DOW_cos'           : np.cos(2 * np.pi * dt.dayofweek / 7),
     }
-
+ 
     for w in ['Rainy', 'Snowy', 'Sunny']:
         row[f'Weather Condition_{w}'] = int(weather == w)
-
+ 
     for s in ['Spring', 'Summer', 'Winter']:
         row[f'Seasonality_{s}'] = int(seasonality == s)
-
+ 
     for cat in ['Electronics', 'Furniture', 'Groceries', 'Toys']:
         row[f'Category_{cat}'] = 0
-
+ 
     for s in ['Spring', 'Summer', 'Winter']:
         row[f'Promo_x_Seasonality_{s}'] = promotion_val * row[f'Seasonality_{s}']
-
+ 
     df_input = pd.DataFrame([row])
     df_input = df_input.reindex(columns=train_columns, fill_value=0)
-
-    num_cols = df_input.select_dtypes(include=['int64', 'float64', 'bool']).columns
-    df_input[num_cols] = scaler.transform(df_input[num_cols])
-
+ 
+    scaler_cols = [c for c in scaler.feature_names_in_ if c in df_input.columns]
+    df_input[scaler_cols] = scaler.transform(df_input[scaler_cols])
+ 
     df_final = df_input.reindex(columns=selected_cols, fill_value=0)
-
+ 
     return df_final
-
-
+ 
+ 
 def predict(prediction_date, inventory_level, price, discount,
             promotion_val, weather, seasonality, epidemic_val):
     X = build_input(prediction_date, inventory_level, price, discount,
                     promotion_val, weather, seasonality, epidemic_val)
     pred = stack_model.predict(X)[0]
     return max(0, int(round(pred)))
-
-
+ 
+ 
 st.set_page_config(page_title="Sales Demand Forecaster", layout="wide")
-
+ 
 st.title("Sales Forecasting System")
-st.markdown("**Daily Units Sold Predictor — Stacked Ensemble (XGBoost + Random Forest)**")
-
+st.markdown("**Daily Units Sold Predictor — Stacked Ensemble (XGBoost + Random Forest + Ridge)**")
+ 
 if not MODEL_LOADED:
     st.error(f"Model not found. Run FinalModel.ipynb first to generate model_artifacts/artifacts.pkl. Error: {MODEL_ERROR}")
     st.stop()
-
+ 
 st.sidebar.header("Prediction Inputs")
-
+ 
 col1, col2 = st.sidebar.columns(2)
-
+ 
 with col1:
     inventory_level = st.number_input("Inventory Level", min_value=0, value=120)
     price           = st.number_input("Price ($)", min_value=10.0, value=65.0, step=0.5)
     discount        = st.number_input("Discount (%)", min_value=0, max_value=30, value=8)
-
+ 
 with col2:
     promotion   = st.selectbox("Promotion Active?", ["No", "Yes"], index=0)
     weather     = st.selectbox("Weather Condition", ["Cloudy", "Rainy", "Snowy", "Sunny"])
     seasonality = st.selectbox("Season", ["Autumn", "Spring", "Summer", "Winter"])
     epidemic    = st.selectbox("Epidemic / Special Event?", ["No", "Yes"], index=0)
-
+ 
 prediction_date = st.sidebar.date_input("Prediction Date", datetime.today() + timedelta(days=1))
-
+ 
 predict_button = st.sidebar.button("Predict Units Sold", type="primary", use_container_width=True)
 view_history   = st.sidebar.button("View Prediction History", use_container_width=True)
-
+ 
 promotion_val = 1 if promotion == "Yes" else 0
 epidemic_val  = 1 if epidemic  == "Yes" else 0
-
+ 
 if predict_button:
     with st.spinner("Running model..."):
         predicted_units = predict(
             prediction_date, inventory_level, price, discount,
             promotion_val, weather, seasonality, epidemic_val
         )
-
+ 
     conn = sqlite3.connect(DB_PATH)
     conn.execute('''
         INSERT INTO predictions
@@ -178,10 +178,10 @@ if predict_button:
     ))
     conn.commit()
     conn.close()
-
+ 
     st.success(f"**Predicted Daily Units Sold: {predicted_units} units**")
     st.info(f"Date: {prediction_date.strftime('%Y-%m-%d')} ({prediction_date.strftime('%A')})")
-
+ 
     if predicted_units >= 110:
         st.balloons()
         st.success("High Demand Expected — Prepare more stock!")
@@ -189,10 +189,10 @@ if predict_button:
         st.info("Moderate Demand")
     else:
         st.warning("Low Demand Expected")
-
+ 
 if view_history:
     st.subheader("Prediction History")
-
+ 
     conn = sqlite3.connect(DB_PATH)
     df_history = pd.read_sql_query("""
         SELECT
@@ -211,10 +211,10 @@ if view_history:
         LIMIT 20
     """, conn)
     conn.close()
-
+ 
     if df_history.empty:
         st.info("No predictions yet. Make your first prediction!")
     else:
         st.dataframe(df_history, use_container_width=True, hide_index=True)
-
-st.caption("Sales Forecasting System | Stacked Ensemble (XGBoost + Random Forest) | SQLite Database Enabled")
+ 
+st.caption("Sales Forecasting System | Stacked Ensemble (XGBoost + Random Forest + Ridge) | SQLite Database Enabled")
